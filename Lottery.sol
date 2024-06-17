@@ -160,12 +160,16 @@ contract DaxLotto is Ownable {
     * Throws if any of the validation checks fail, preventing the creation or validation of invalid tickets.
     */
     function validateNumbers(uint256[] memory numbers) internal pure {
-        require(numbers.length == 6, "Invalid numbers count");
-        bool[50] memory numberExists;
+        require(numbers.length == 6, "Invalid numbers count"); // Check for exactly 6 numbers
+    
+        bool[50] memory numberExists; // Tracks if a number has already been used
+    
         for (uint i = 0; i < numbers.length; i++) {
-            require(numbers[i] >= 1 && numbers[i] <= 49, "Number out of range");
-            require(!numberExists[numbers[i]], "Numbers must be unique");
-            numberExists[numbers[i]] = true;
+            require(numbers[i] >= 1, "Number must be at least 1"); // Ensure number is at least 1
+            require(numbers[i] <= 49, "Number must be at most 49"); // Ensure number is at most 49
+            require(!numberExists[numbers[i]], "Numbers must be unique"); // Ensure uniqueness
+    
+            numberExists[numbers[i]] = true; // Mark number as used
         }
     }
 
