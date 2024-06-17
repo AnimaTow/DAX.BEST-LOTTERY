@@ -8,18 +8,85 @@ import "./access/Ownable.sol";
  * @title DaxLotto
  * @dev The DaxLotto contract
  */
-contract DaxLotto is Ownable {
+contract DaxLotto is Ownable, ReentrancyGuard {
     /// @notice The ERC20 token used for ticket payments
     IERC20 public token;
 
-    /// @notice The price of a single lottery ticket in tokens (1000 DAX tokens)
-    uint256 public ticketPrice = 1000 * 10**18;
+    /**
+     * @dev Structure that contains the information of a lottery ticket.
+     * @param id The unique ID of the ticket.
+     * @param numbers The numbers chosen by the player.
+     * @param timestamp The timestamp when the ticket was purchased.
+     * @param pricePaid The actual price paid for the ticket, after any discounts.
+     */
+    struct Ticket {
+        uint256 id;
+        uint256[] numbers;
+        uint256 timestamp;
+        uint256 pricePaid;
+    }
 
-    /// @notice The lock duration for ticket refunds (30 days)
-    uint256 public lockDuration = 30 days;
+    /**
+     * @dev Structure that contains the results of checking a ticket.
+     * @param ticketId The unique ID of the checked ticket.
+     * @param owner The address of the ticket owner.
+     * @param correctNumbersCount The number of correctly guessed numbers.
+     * @param correctNumbers A list of the correctly guessed numbers.
+     */
+    struct CheckResults {
+        uint256 ticketId;
+        address owner;
+        uint256 correctNumbersCount;
+        uint256[] correctNumbers;
+    }
+
+    /**
+     * @dev Extended structure that contains additional information about a lottery ticket.
+     * @param id The unique ID of the ticket.
+     * @param numbers The numbers chosen by the player.
+     * @param timestamp The timestamp when the ticket was purchased.
+     * @param pricePaid The actual price paid for the ticket, after any discounts.
+     * @param owner The address of the ticket owner.
+     */
+    struct ExtendedTicket {
+        uint256 id;
+        uint256[] numbers;
+        uint256 timestamp;
+        uint256 pricePaid;
+        address owner;
+    }
+
+    /**
+     * @dev Structure that contains the winning results of a ticket.
+     * @param ticketId The unique ID of the ticket.
+     * @param correctNumbersCount The number of correctly guessed numbers.
+     */
+    struct WinResult {
+        uint256 ticketId;
+        uint256 correctNumbersCount;
+    }
+
+    /**
+     * @dev Structure that contains the details of a ticket.
+     * @param ticketId The unique ID of the ticket.
+     * @param numbers The numbers chosen by the player.
+     */
+    struct TicketDetails {
+        uint256 ticketId;
+        uint256[] numbers;
+    }
+
+    /// @notice The price of a single lottery ticket in tokens
+    uint256 public ticketPrice;
+
+    /// @notice The lock duration for ticket refunds
+    uint256 public lockDuration;
 
     /// @notice The current lottery period
-    uint256 public currentPeriod = 0;
+    uint256 public currentPeriod;
+
+    /// @notice The next TicketId
+    uint256 private nextTicketId;
 
     /// @notice Mapping from user address to their tickets
     mapping(address => Ticket[]) public tickets;
@@ -57,11 +124,15 @@ contract DaxLotto is Ownable {
     event TicketPurchased(address indexed buyer, uint256 ticketId, uint256[] numbers, uint256 timestamp);
 
     /**
-     * @notice Initializes the contract with the DAX token and sets the initial owner.
-     * @param initialOwner The address of the initial owner of the contract.
+     * @dev Initializes the contract and sets the sender as the owner.
+     * Initializes the token, ticket price, next ticket ID, current period, and lock duration.
      */
-    constructor(address initialOwner) Ownable(initialOwner) {
+    constructor() Ownable(msg.sender) {
         token = IERC20(0x2A944D47944985F746d32e952cEbA7EB909E1d4F);
+        ticketPrice = 1000 * 10**18;
+        nextTicketId = 1;
+        currentPeriod = 0;
+        lockDuration = 2592000; // 30 Tage in Sekunden
     }
 
     /**
@@ -115,6 +186,8 @@ contract DaxLotto is Ownable {
      */
     function buyMultiTickets(uint256[][] memory _numbersArray) public returns (TicketDetails[] memory) {
         require(_numbersArray.length > 0, "No tickets specified");
+        require(_numbersArray.length <= 17, "Cannot buy more than 17 tickets at once");
+
         uint256 totalTicketPrice = ticketPrice * _numbersArray.length;
 
         require(token.transferFrom(msg.sender, address(this), totalTicketPrice), "Payment failed");
@@ -174,6 +247,7 @@ contract DaxLotto is Ownable {
             numberExists[numbers[i]] = true; // Mark number as used
         }
     }
+
     /**
      * @notice Allows a ticket holder to request a refund for their purchased lottery ticket.
      * @dev Refunds the ticket if it is not within the lock period and if the caller is the ticket owner.
@@ -188,7 +262,7 @@ contract DaxLotto is Ownable {
      * 
      * Emits a TicketRefunded event upon a successful refund.
      */
-    function refundTicket(uint256 ticketId) public {
+    function refundTicket(uint256 ticketId) public nonReentrant {
         require(ticketOwner[ticketId] == msg.sender, "You do not own this ticket");
 
         Ticket[] storage userTickets = tickets[msg.sender];
@@ -220,7 +294,7 @@ contract DaxLotto is Ownable {
      * 
      * Reverts if no tickets are eligible for refund or if the token transfer for the refund fails.
      */
-    function refundAllTickets() public {
+    function refundAllTickets() public nonReentrant {
         Ticket[] storage userTickets = tickets[msg.sender];
         uint256 refundAmount = 0;
         uint256 i = 0;
