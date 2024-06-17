@@ -28,7 +28,8 @@ abstract contract Ownable is Context {
     }
 
     /**
-     * @dev Throws if called by any account other than the owner.
+     * @dev Modifier to make a function callable only by the owner.
+     * Throws if called by any account other than the owner.
      */
     modifier onlyOwner() {
         _checkOwner(); // Checks if the caller is the owner
