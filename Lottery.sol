@@ -12,6 +12,20 @@ contract DaxLotto is Ownable, ReentrancyGuard {
     /// @notice The ERC20 token used for ticket payments
     IERC20 public token;
 
+    error InvalidNumbersCount(uint256 providedCount, string message);
+    error PaymentFailed(string message);
+    error NoTicketsSpecified(string message);
+    error ExceedsTicketLimit(uint256 ticketCount, string message);
+    error InvalidNumbersCountForTicket(uint256 providedCount, string message);
+    error NumberOutOfRange(uint256 number, string message);
+    error NonUniqueNumbers(uint256 number, string message);
+    error NotTicketOwner(string message);
+    error TicketLocked(string message);
+    error RefundFailed(string message);
+    error NoRefundableTickets(string message);
+    error IndexOutOfBounds(uint256 index, string message);
+    error StartIndexOutOfBounds(uint256 startIndex, string message);
+
     /**
      * @dev Structure that contains the information of a lottery ticket.
      * @param id The unique ID of the ticket.
@@ -146,12 +160,13 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @return numbers The array of numbers that was submitted.
      */
     function buyTicket(uint256[] memory _numbers) public returns (uint256 ticketId, uint256[] memory numbers) {
-        require(_numbers.length == 6, "Invalid numbers count");
+        if (_numbers.length != 6) revert InvalidNumbersCount(_numbers.length, "Invalid numbers count");
+
         validateNumbers(_numbers);
 
         uint256 pricePaid = ticketPrice - (ticketPrice * 2 / 100);
 
-        require(token.transferFrom(msg.sender, address(this), ticketPrice), "Payment failed");
+        if (!token.transferFrom(msg.sender, address(this), ticketPrice)) revert PaymentFailed("Payment failed");
 
         Ticket memory newTicket = Ticket({
             id: nextTicketId,
@@ -185,17 +200,17 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * Emits a TicketPurchased event for each ticket purchased.
      */
     function buyMultiTickets(uint256[][] memory _numbersArray) public returns (TicketDetails[] memory) {
-        require(_numbersArray.length > 0, "No tickets specified");
-        require(_numbersArray.length <= 17, "Cannot buy more than 17 tickets at once");
+        if (_numbersArray.length == 0) revert NoTicketsSpecified("No tickets specified");
+        if (_numbersArray.length > 17) revert ExceedsTicketLimit(_numbersArray.length, "Cannot buy more than 17 tickets at once");
 
         uint256 totalTicketPrice = ticketPrice * _numbersArray.length;
 
-        require(token.transferFrom(msg.sender, address(this), totalTicketPrice), "Payment failed");
+        if (!token.transferFrom(msg.sender, address(this), totalTicketPrice)) revert PaymentFailed("Payment failed");
 
         TicketDetails[] memory purchasedTickets = new TicketDetails[](_numbersArray.length);
 
         for (uint256 i = 0; i < _numbersArray.length; i++) {
-            require(_numbersArray[i].length == 6, "Invalid numbers count for ticket");
+            if (_numbersArray[i].length != 6) revert InvalidNumbersCountForTicket(_numbersArray[i].length, "Invalid numbers count for ticket");
             validateNumbers(_numbersArray[i]);
 
             uint256 pricePaid = ticketPrice - (ticketPrice * 2 / 100); 
@@ -235,14 +250,13 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * Throws if any of the validation checks fail, preventing the creation or validation of invalid tickets.
      */
     function validateNumbers(uint256[] memory numbers) internal pure {
-        require(numbers.length == 6, "Invalid numbers count"); // Check for exactly 6 numbers
+        if (numbers.length != 6) revert InvalidNumbersCount(numbers.length, "Invalid numbers count");
 
         bool[50] memory numberExists; // Tracks if a number has already been used
 
         for (uint256 i = 0; i < numbers.length; i++) {
-            require(numbers[i] >= 1, "Number must be at least 1"); // Ensure number is at least 1
-            require(numbers[i] <= 49, "Number must be at most 49"); // Ensure number is at most 49
-            require(!numberExists[numbers[i]], "Numbers must be unique"); // Ensure uniqueness
+            if (numbers[i] < 1 || numbers[i] > 49) revert NumberOutOfRange(numbers[i], "Number out of range");
+            if (numberExists[numbers[i]]) revert NonUniqueNumbers(numbers[i], "Numbers must be unique");
 
             numberExists[numbers[i]] = true; // Mark number as used
         }
@@ -263,17 +277,17 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * Emits a TicketRefunded event upon a successful refund.
      */
     function refundTicket(uint256 ticketId) public nonReentrant {
-        require(ticketOwner[ticketId] == msg.sender, "You do not own this ticket");
+        if (ticketOwner[ticketId] != msg.sender) revert NotTicketOwner("You do not own this ticket");
 
         Ticket[] storage userTickets = tickets[msg.sender];
         for (uint256 i = 0; i < userTickets.length; i++) {
             if (userTickets[i].id == ticketId) {
-                require(block.timestamp >= userTickets[i].timestamp + lockDuration, "Ticket locked");
+                if (block.timestamp < userTickets[i].timestamp + lockDuration) revert TicketLocked("Ticket locked");
 
                 uint256 pricePaid = userTickets[i].pricePaid;
                 deleteTicket(userTickets, i);
 
-                require(token.transfer(msg.sender, pricePaid), "Refund failed");
+                if (!token.transfer(msg.sender, pricePaid)) revert RefundFailed("Refund failed");
                 emit TicketRefunded(msg.sender, ticketId, pricePaid);
                 delete ticketOwner[ticketId];
                 break;
@@ -311,9 +325,9 @@ contract DaxLotto is Ownable, ReentrancyGuard {
 
         if (refundAmount > 0) {
             emit refundAllTicketsDebug(refundAmount, userTickets.length);
-            require(token.transfer(msg.sender, refundAmount), "Refund failed: token transfer failed");
+            if (!token.transfer(msg.sender, refundAmount)) revert RefundFailed("Refund failed: token transfer failed");
         } else {
-            revert("No tickets eligible for refund or refund period not yet expired.");
+            revert NoRefundableTickets("No tickets eligible for refund or refund period not yet expired");
         }
     }
 
@@ -324,7 +338,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param index The index of the ticket to be deleted.
      */
     function deleteTicket(Ticket[] storage userTickets, uint256 index) internal {
-        require(index < userTickets.length, "Index out of bounds");
+        if (index >= userTickets.length) revert IndexOutOfBounds(index, "Index out of bounds");
         userTickets[index] = userTickets[userTickets.length - 1];
         userTickets.pop();
     }
@@ -367,7 +381,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @return An array of tickets belonging to the user within the specified range.
      */
     function getUserTickets(address user, uint256 start, uint256 limit) public view returns (Ticket[] memory) {
-        require(start < tickets[user].length, "Start index out of bounds");
+        if (start >= tickets[user].length) revert StartIndexOutOfBounds(start, "Start index out of bounds");
         uint256 end = start + limit;
         if (end > tickets[user].length) {
             end = tickets[user].length;
