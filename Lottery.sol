@@ -5,60 +5,57 @@ import "./token/ERC20/IERC20.sol";
 import "./access/Ownable.sol";
 
 contract DaxLotto is Ownable {
+    /// @notice The ERC20 token used for ticket payments
     IERC20 public token;
+
+    /// @notice The price of a single lottery ticket in tokens (1000 DAX tokens)
     uint256 public ticketPrice = 1000 * 10**18;
+
+    /// @notice The lock duration for ticket refunds (30 days)
     uint256 public lockDuration = 30 days;
 
-    struct Ticket {
-        uint256 id;
-        uint256[] numbers;
-        uint256 timestamp;
-        uint256 pricePaid;
-    }
-
-    struct CheckResults {
-        uint256 ticketId;
-        address owner;
-        uint256 correctNumbersCount;
-        uint256[] correctNumbers;
-    }
-
-    struct ExtendedTicket {
-        uint256 id;
-        uint256[] numbers;
-        uint256 timestamp;
-        uint256 pricePaid;
-        address owner;
-    }
-
-    struct WinResult {
-        uint256 ticketId;
-        uint256 correctNumbersCount;
-    }
-
-    struct TicketDetails {
-        uint256 ticketId;
-        uint256[] numbers;
-    }
-
-    uint256 private nextTicketId = 1;
+    /// @notice The current lottery period
     uint256 public currentPeriod = 0;
 
+    /// @notice Mapping from user address to their tickets
     mapping(address => Ticket[]) public tickets;
+
+    /// @notice Mapping from ticket ID to the owner's address
     mapping(uint256 => address) public ticketOwner;
+
+    /// @notice Mapping from lottery period to the winning numbers
     mapping(uint256 => uint256[]) public winningNumbers;
+
+    /// @notice Mapping from lottery period to the draw date
     mapping(uint256 => uint256) public drawDates;
 
+    /// @notice Event emitted when winning numbers are drawn
+    /// @param period The lottery period
+    /// @param winningNumbers The drawn winning numbers
     event NumbersDrawn(uint256 period, uint256[] winningNumbers);
+
+    /// @notice Event emitted for debugging purposes when all tickets are refunded
+    /// @param refundAmount The total refund amount
+    /// @param ticketCount The number of tickets refunded
     event refundAllTicketsDebug(uint256 refundAmount, uint256 ticketCount);
+
+    /// @notice Event emitted when a ticket is refunded
+    /// @param user The address of the user receiving the refund
+    /// @param ticketId The ID of the refunded ticket
+    /// @param refundedAmount The amount refunded for the ticket
     event TicketRefunded(address indexed user, uint256 ticketId, uint256 refundedAmount);
+
+    /// @notice Event emitted when a ticket is purchased
+    /// @param buyer The address of the buyer
+    /// @param ticketId The ID of the purchased ticket
+    /// @param numbers The array of numbers on the ticket
+    /// @param timestamp The purchase timestamp
     event TicketPurchased(address indexed buyer, uint256 ticketId, uint256[] numbers, uint256 timestamp);
 
-    /*
+    /**
      * @notice Initializes the contract with the DAX token and sets the initial owner.
      * @param initialOwner The address of the initial owner of the contract.
      */
-
     constructor(address initialOwner) Ownable(initialOwner) {
         token = IERC20(0x2A944D47944985F746d32e952cEbA7EB909E1d4F);
     }
@@ -73,7 +70,6 @@ contract DaxLotto is Ownable {
      * @return ticketId The ID of the purchased ticket.
      * @return numbers The array of numbers that was submitted.
      */
-
     function buyTicket(uint256[] memory _numbers) public returns (uint256 ticketId, uint256[] memory numbers) {
         require(_numbers.length == 6, "Invalid numbers count");
         validateNumbers(_numbers);
@@ -113,7 +109,6 @@ contract DaxLotto is Ownable {
     * 
     * Emits a TicketPurchased event for each ticket purchased.
     */
-
     function buyMultiTickets(uint256[][] memory _numbersArray) public returns (TicketDetails[] memory) {
         require(_numbersArray.length > 0, "No tickets specified");
         uint256 totalTicketPrice = ticketPrice * _numbersArray.length;
@@ -162,7 +157,6 @@ contract DaxLotto is Ownable {
     * 
     * Throws if any of the validation checks fail, preventing the creation or validation of invalid tickets.
     */
-
     function validateNumbers(uint256[] memory numbers) internal pure {
         require(numbers.length == 6, "Invalid numbers count"); // Check for exactly 6 numbers
 
@@ -193,7 +187,6 @@ contract DaxLotto is Ownable {
     *          maintaining security measures to prevent abuse of the system. It ensures that refunds are 
     *          processed securely and that the state of the tickets and owner mappings are accurately maintained.
     */
-
     function refundTicket(uint256 ticketId) public {
         require(ticketOwner[ticketId] == msg.sender, "You do not own this ticket");
 
@@ -237,7 +230,6 @@ contract DaxLotto is Ownable {
     * - The function uses a manual iteration and modification pattern on the `tickets` array to safely update
     *   ticket data without encountering state corruption due to reentrancy attacks.
     */
-    
     function refundAllTickets() public {
         Ticket[] storage userTickets = tickets[msg.sender];
         uint256 refundAmount = 0;
@@ -309,7 +301,6 @@ contract DaxLotto is Ownable {
      * @param limit The maximum number of tickets to retrieve.
      * @return An array of tickets belonging to the user within the specified range.
      */
-
     function getUserTickets(address user, uint start, uint limit) public view returns (Ticket[] memory) {
         require(start < tickets[user].length, "Start index out of bounds");
         uint end = start + limit;
