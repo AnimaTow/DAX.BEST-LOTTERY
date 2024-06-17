@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./token/ERC20/IERC20.sol";
-import "./access/Ownable.sol";
+import { IERC20 } from "./token/ERC20/IERC20.sol";
+import { Ownable } from "./access/Ownable.sol";
+import { ReentrancyGuard } from "./security/ReentrancyGuard.sol";
 
 /**
  * @title DaxLotto
@@ -12,6 +13,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
     /// @notice The ERC20 token used for ticket payments
     IERC20 public token;
 
+    // Custom errors
     error InvalidNumbersCount(uint256 providedCount, string message);
     error PaymentFailed(string message);
     error NoTicketsSpecified(string message);
@@ -103,16 +105,16 @@ contract DaxLotto is Ownable, ReentrancyGuard {
     uint256 private nextTicketId;
 
     /// @notice Mapping from user address to their tickets
-    mapping(address => Ticket[]) public tickets;
+    mapping(address user => Ticket[] userTickets) public tickets;
 
     /// @notice Mapping from ticket ID to the owner's address
-    mapping(uint256 => address) public ticketOwner;
+    mapping(uint256 ticketId => address owner) public ticketOwner;
 
     /// @notice Mapping from lottery period to the winning numbers
-    mapping(uint256 => uint256[]) public winningNumbers;
+    mapping(uint256 period => uint256[] numbers) public winningNumbers;
 
     /// @notice Mapping from lottery period to the draw date
-    mapping(uint256 => uint256) public drawDates;
+    mapping(uint256 period => uint256 drawDate) public drawDates;
 
     /// @notice Event emitted when winning numbers are drawn
     /// @param period The lottery period
@@ -511,10 +513,10 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         uint256[] memory winningNumbersForPeriod = winningNumbers[currentPeriod - 1];
         uint256 drawDate = drawDates[currentPeriod - 1];
 
-        for (uint256 i = start; i < end; i++) {
+        for (uint256 i = start; i < end; ++i) {
             address owner = ticketOwner[i];
             Ticket[] storage userTickets = tickets[owner];
-            for (uint256 j = 0; j < userTickets.length; j++) {
+            for (uint256 j = 0; j < userTickets.length; ++j) {
                 if (userTickets[j].id == i && userTickets[j].numbers.length > 0 && userTickets[j].timestamp < drawDate) {
                     ++count;
                 }
@@ -568,7 +570,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
     function countRefundableTickets(address user) public view returns (uint256 count) {
         Ticket[] memory userTickets = tickets[user];
         count = 0;
-        for (uint256 i = 0; i < userTickets.length; i++) {
+        for (uint256 i = 0; i < userTickets.length; ++i) {
             if (block.timestamp >= userTickets[i].timestamp + lockDuration) {
                 ++count;
             }
@@ -622,7 +624,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
 
         // Resize the array to the actual number of tickets found
         ExtendedTicket[] memory resultTickets = new ExtendedTicket[](index);
-        for (uint256 i = 0; i < index; i++) {
+        for (uint256 i = 0; i < index; ++i) {
             resultTickets[i] = tempTickets[i];
         }
 
