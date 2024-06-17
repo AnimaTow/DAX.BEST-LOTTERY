@@ -161,7 +161,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @return ticketId The ID of the purchased ticket.
      * @return numbers The array of numbers that was submitted.
      */
-    function buyTicket(uint256[] memory _numbers) public returns (uint256 ticketId, uint256[] memory numbers) {
+    function buyTicket(uint256[] memory _numbers) external returns (uint256 ticketId, uint256[] memory numbers) {
         if (_numbers.length != 6) revert InvalidNumbersCount(_numbers.length, "Invalid numbers count");
 
         validateNumbers(_numbers);
@@ -201,7 +201,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * 
      * Emits a TicketPurchased event for each ticket purchased.
      */
-    function buyMultiTickets(uint256[][] memory _numbersArray) public returns (TicketDetails[] memory) {
+    function buyMultiTickets(uint256[][] memory _numbersArray) external returns (TicketDetails[] memory) {
         if (_numbersArray.length == 0) revert NoTicketsSpecified("No tickets specified");
         if (_numbersArray.length > 17) revert ExceedsTicketLimit(_numbersArray.length, "Cannot buy more than 17 tickets at once");
 
@@ -251,7 +251,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * 
      * Throws if any of the validation checks fail, preventing the creation or validation of invalid tickets.
      */
-    function validateNumbers(uint256[] memory numbers) internal pure {
+    function validateNumbers(uint256[] memory numbers) private pure {
         if (numbers.length != 6) revert InvalidNumbersCount(numbers.length, "Invalid numbers count");
 
         bool[50] memory numberExists; // Tracks if a number has already been used
@@ -278,7 +278,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * 
      * Emits a TicketRefunded event upon a successful refund.
      */
-    function refundTicket(uint256 ticketId) public nonReentrant {
+    function refundTicket(uint256 ticketId) external nonReentrant {
         if (ticketOwner[ticketId] != msg.sender) revert NotTicketOwner("You do not own this ticket");
 
         Ticket[] storage userTickets = tickets[msg.sender];
@@ -310,7 +310,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * 
      * Reverts if no tickets are eligible for refund or if the token transfer for the refund fails.
      */
-    function refundAllTickets() public nonReentrant {
+    function refundAllTickets() external nonReentrant {
         Ticket[] storage userTickets = tickets[msg.sender];
         uint256 refundAmount = 0;
         uint256 i = 0;
@@ -339,7 +339,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param userTickets The array of tickets belonging to the user.
      * @param index The index of the ticket to be deleted.
      */
-    function deleteTicket(Ticket[] storage userTickets, uint256 index) internal {
+    function deleteTicket(Ticket[] storage userTickets, uint256 index) private {
         if (index >= userTickets.length) revert IndexOutOfBounds(index, "Index out of bounds");
         userTickets[index] = userTickets[userTickets.length - 1];
         userTickets.pop();
@@ -352,7 +352,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * 
      * Emits a NumbersDrawn event upon drawing the numbers.
      */
-    function drawWinningNumbers() public onlyOwner {
+    function drawWinningNumbers() external onlyOwner {
         uint256[] memory numbers = new uint256[](6);
         uint256 seed = uint256(blockhash(block.number - 1));
         
@@ -382,7 +382,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param limit The maximum number of tickets to retrieve.
      * @return An array of tickets belonging to the user within the specified range.
      */
-    function getUserTickets(address user, uint256 start, uint256 limit) public view returns (Ticket[] memory) {
+    function getUserTickets(address user, uint256 start, uint256 limit) external view returns (Ticket[] memory) {
         if (start >= tickets[user].length) revert StartIndexOutOfBounds(start, "Start index out of bounds");
         uint256 end = start + limit;
         if (end > tickets[user].length) {
@@ -403,7 +403,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param user The address of the user whose ticket count is to be retrieved.
      * @return The total number of tickets owned by the user.
      */
-    function getCountUserTickets(address user) public view returns (uint256) {
+    function getCountUserTickets(address user) external view returns (uint256) {
         return tickets[user].length;
     }
 
@@ -411,7 +411,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @notice Sets a new lock duration for ticket refunds.
      * @param _newDuration The new lock duration in seconds.
      */
-    function setLockDuration(uint256 _newDuration) public onlyOwner {
+    function setLockDuration(uint256 _newDuration) external onlyOwner {
         lockDuration = _newDuration;
     }
 
@@ -419,7 +419,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @notice Retrieves the current lock duration for ticket refunds.
      * @return The current lock duration in seconds.
      */
-    function getLockDuration() public view returns (uint256) {
+    function getLockDuration() external view returns (uint256) {
         return lockDuration;
     }
 
@@ -428,7 +428,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param period The lottery period to retrieve the draw history for.
      * @return A tuple containing the winning numbers and the draw date for the specified period.
      */
-    function getDrawHistory(uint256 period) public view returns (uint256[] memory, uint256) {
+    function getDrawHistory(uint256 period) external view returns (uint256[] memory, uint256) {
         return (winningNumbers[period - 1], drawDates[period - 1]);
     }
 
@@ -436,7 +436,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @notice Output of the current lottery numbers from the current period.
      * @return The winning numbers of the current period.
      */
-    function getCurrentWinningNumbers() public view returns (uint256[] memory) {
+    function getCurrentWinningNumbers() external view returns (uint256[] memory) {
         return winningNumbers[currentPeriod - 1];
     }
 
@@ -444,7 +444,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @notice Allows the operator to change the ticket price.
      * @param _newPrice The new ticket price.
      */
-    function setTicketPrice(uint256 _newPrice) public onlyOwner {
+    function setTicketPrice(uint256 _newPrice) external onlyOwner {
         ticketPrice = _newPrice;
     }
 
@@ -455,7 +455,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param limit The maximum number of tickets to check.
      * @return An array of WinResult structs containing the results for each ticket checked.
      */
-    function checkForWins(address user, uint256 start, uint256 limit) public view returns (WinResult[] memory) {
+    function checkForWins(address user, uint256 start, uint256 limit) external view returns (WinResult[] memory) {
         Ticket[] memory userTickets = tickets[user];
         uint256 end = start + limit;
         if (end > userTickets.length) {
@@ -502,7 +502,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @dev This function can only be called by the owner of the contract. It iterates through all tickets issued up to the last ticket ID and compares each ticket's numbers to the winning numbers of the current period. If a ticket's numbers match any of the winning numbers and was purchased before the draw date, it is considered for the results.
      * @return results An array of CheckResults structs, each containing the results for an individual ticket. Each result includes the ticket ID, the owner of the ticket, the count of correct numbers matched, and an array of the matched numbers themselves.
      */
-    function checkAllTickets(uint256 start, uint256 limit) public view onlyOwner returns (CheckResults[] memory) {
+    function checkAllTickets(uint256 start, uint256 limit) external view onlyOwner returns (CheckResults[] memory) {
         uint256 totalTickets = nextTicketId - 1;
         uint256 end = start + limit;
         if (end > totalTickets) {
@@ -567,7 +567,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param user The address of the user whose tickets are to be checked.
      * @return count The number of tickets that can be returned.
      */
-    function countRefundableTickets(address user) public view returns (uint256 count) {
+    function countRefundableTickets(address user) external view returns (uint256 count) {
         Ticket[] memory userTickets = tickets[user];
         count = 0;
         for (uint256 i = 0; i < userTickets.length; ++i) {
@@ -592,7 +592,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      *         - pricePaid: The actual price paid for the ticket after any fees.
      *         - owner: The address of the ticket owner.
      */
-    function viewAllTickets(uint256 start, uint256 limit) public view onlyOwner returns (ExtendedTicket[] memory) {
+    function viewAllTickets(uint256 start, uint256 limit) external view onlyOwner returns (ExtendedTicket[] memory) {
         uint256 totalTickets = nextTicketId;
         uint256 end = start + limit;
         if (end > totalTickets) {
@@ -635,7 +635,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @notice Retrieves the total number of tickets issued by the contract.
      * @return The total number of tickets.
      */
-    function getTotalTickets() public view returns (uint256) {
+    function getTotalTickets() external view returns (uint256) {
         return nextTicketId - 1;
     }
 
@@ -662,7 +662,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @notice Retrieves all unique ticket owners.
      * @return An array of addresses of unique ticket owners.
      */
-    function getAllOwners() internal view returns (address[] memory) {
+    function getAllOwners() private view returns (address[] memory) {
         address[] memory owners = new address[](nextTicketId);
         uint256 ownerCount = 0;
         for (uint256 i = 0; i < nextTicketId; ++i) {
