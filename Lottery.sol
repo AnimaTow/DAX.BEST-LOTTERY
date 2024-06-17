@@ -139,16 +139,29 @@ contract DaxLotto is Ownable, ReentrancyGuard {
     /// @param timestamp The purchase timestamp
     event TicketPurchased(address indexed buyer, uint256 ticketId, uint256[] numbers, uint256 timestamp);
 
+
+    event TicketPriceUpdated(uint256 oldPrice, uint256 newPrice);
+    event LockDurationUpdated(uint256 oldDuration, uint256 newDuration);
+    event LotteryInitialized(address tokenAddress, uint256 ticketPrice, uint256 lockDuration);
+    event WinningNumbersDrawn(uint256 period, uint256[] winningNumbers);
+
+
+
     /**
      * @dev Initializes the contract and sets the sender as the owner.
      * Initializes the token, ticket price, next ticket ID, current period, and lock duration.
      */
     constructor() Ownable(msg.sender) {
         token = IERC20(0x2A944D47944985F746d32e952cEbA7EB909E1d4F);
-        ticketPrice = 1000 * 10**18;
+        uint256 initialTicketPrice = 1000 * 10**18;
+        uint256 initialLockDuration = 2592000; // 30 Tage in Sekunden
+
+        ticketPrice = initialTicketPrice;
         nextTicketId = 1;
         currentPeriod = 0;
-        lockDuration = 2592000; // 30 Tage in Sekunden
+        lockDuration = initialLockDuration;
+
+        emit LotteryInitialized(address(token), initialTicketPrice, initialLockDuration);
     }
 
     /**
@@ -363,7 +376,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
             // Duplikatprüfung
             for (uint256 j = 0; j < i; ++j) {
                 if (numbers[i] == numbers[j]) {
-                    i--;
+                    --i;
                     break;
                 }
             }
@@ -372,7 +385,9 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         winningNumbers[currentPeriod] = numbers;
         drawDates[currentPeriod] = block.timestamp;
         emit NumbersDrawn(currentPeriod, numbers);
-        currentPeriod++;
+        ++currentPeriod;
+
+        emit WinningNumbersDrawn(currentPeriod, numbers);
     }
 
     /**
@@ -412,7 +427,9 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param _newDuration The new lock duration in seconds.
      */
     function setLockDuration(uint256 _newDuration) external onlyOwner {
+        uint256 oldDuration = lockDuration;
         lockDuration = _newDuration;
+        emit LockDurationUpdated(oldDuration, _newDuration);
     }
 
     /**
@@ -445,7 +462,9 @@ contract DaxLotto is Ownable, ReentrancyGuard {
      * @param _newPrice The new ticket price.
      */
     function setTicketPrice(uint256 _newPrice) external onlyOwner {
+        uint256 oldPrice = ticketPrice;
         ticketPrice = _newPrice;
+        emit TicketPriceUpdated(oldPrice, _newPrice);
     }
 
     /**
