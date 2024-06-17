@@ -180,7 +180,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
 
         ticketId = nextTicketId;
         numbers = _numbers;
-        nextTicketId++;
+        ++nextTicketId;
 
         emit TicketPurchased(msg.sender, ticketId, numbers, block.timestamp);
         return (ticketId, numbers);
@@ -209,7 +209,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
 
         TicketDetails[] memory purchasedTickets = new TicketDetails[](_numbersArray.length);
 
-        for (uint256 i = 0; i < _numbersArray.length; i++) {
+        for (uint256 i = 0; i < _numbersArray.length; ++i) {
             if (_numbersArray[i].length != 6) revert InvalidNumbersCountForTicket(_numbersArray[i].length, "Invalid numbers count for ticket");
             validateNumbers(_numbersArray[i]);
 
@@ -254,7 +254,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
 
         bool[50] memory numberExists; // Tracks if a number has already been used
 
-        for (uint256 i = 0; i < numbers.length; i++) {
+        for (uint256 i = 0; i < numbers.length; ++i) {
             if (numbers[i] < 1 || numbers[i] > 49) revert NumberOutOfRange(numbers[i], "Number out of range");
             if (numberExists[numbers[i]]) revert NonUniqueNumbers(numbers[i], "Numbers must be unique");
 
@@ -280,7 +280,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         if (ticketOwner[ticketId] != msg.sender) revert NotTicketOwner("You do not own this ticket");
 
         Ticket[] storage userTickets = tickets[msg.sender];
-        for (uint256 i = 0; i < userTickets.length; i++) {
+        for (uint256 i = 0; i < userTickets.length; ++i) {
             if (userTickets[i].id == ticketId) {
                 if (block.timestamp < userTickets[i].timestamp + lockDuration) revert TicketLocked("Ticket locked");
 
@@ -319,7 +319,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
                 delete ticketOwner[userTickets[i].id];
                 deleteTicket(userTickets, i);
             } else {
-                i++;
+                ++i;
             }
         }
 
@@ -354,12 +354,12 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         uint256[] memory numbers = new uint256[](6);
         uint256 seed = uint256(blockhash(block.number - 1));
         
-        for (uint256 i = 0; i < numbers.length; i++) {
+        for (uint256 i = 0; i < numbers.length; ++i) {
             seed = uint256(keccak256(abi.encodePacked(seed, i)));
             numbers[i] = seed % 49 + 1;
 
             // Duplikatprüfung
-            for (uint256 j = 0; j < i; j++) {
+            for (uint256 j = 0; j < i; ++j) {
                 if (numbers[i] == numbers[j]) {
                     i--;
                     break;
@@ -389,9 +389,9 @@ contract DaxLotto is Ownable, ReentrancyGuard {
 
         Ticket[] memory userTickets = new Ticket[](end - start);
         uint256 index = 0;
-        for (uint256 i = start; i < end; i++) {
+        for (uint256 i = start; i < end; ++i) {
             userTickets[index] = tickets[user][i];
-            index++;
+            ++index;
         }
         return userTickets;
     }
@@ -466,15 +466,15 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         uint256 drawDate = drawDates[currentPeriod - 1];
 
         uint256 index = 0;
-        for (uint256 i = start; i < end; i++) {
+        for (uint256 i = start; i < end; ++i) {
             if (userTickets[i].timestamp < drawDate) {
                 uint256 matchCount = 0;
                 uint256[] memory ticketNumbers = userTickets[i].numbers;
 
-                for (uint256 j = 0; j < ticketNumbers.length; j++) {
-                    for (uint256 k = 0; k < winningNumbersForPeriod.length; k++) {
+                for (uint256 j = 0; j < ticketNumbers.length; ++j) {
+                    for (uint256 k = 0; k < winningNumbersForPeriod.length; ++k) {
                         if (ticketNumbers[j] == winningNumbersForPeriod[k]) {
-                            matchCount++;
+                            ++matchCount;
                         }
                     }
                 }
@@ -489,7 +489,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
                     correctNumbersCount: 0
                 });
             }
-            index++;
+            ++index;
         }
 
         return results;
@@ -516,7 +516,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
             Ticket[] storage userTickets = tickets[owner];
             for (uint256 j = 0; j < userTickets.length; j++) {
                 if (userTickets[j].id == i && userTickets[j].numbers.length > 0 && userTickets[j].timestamp < drawDate) {
-                    count++;
+                    ++count;
                 }
             }
         }
@@ -524,19 +524,19 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         CheckResults[] memory tempResults = new CheckResults[](count);
         uint256 index = 0;
 
-        for (uint256 i = start; i < end; i++) {
+        for (uint256 i = start; i < end; ++i) {
             address owner = ticketOwner[i];
             Ticket[] storage userTickets = tickets[owner];
-            for (uint256 j = 0; j < userTickets.length; j++) {
+            for (uint256 j = 0; j < userTickets.length; ++j) {
                 if (userTickets[j].id == i && userTickets[j].numbers.length > 0 && userTickets[j].timestamp < drawDate) {
                     uint256[] memory tempCorrectNumbers = new uint256[](6);
                     uint256 matchCount = 0;
 
-                    for (uint256 k = 0; k < userTickets[j].numbers.length; k++) {
-                        for (uint256 l = 0; l < winningNumbersForPeriod.length; l++) {
+                    for (uint256 k = 0; k < userTickets[j].numbers.length; ++k) {
+                        for (uint256 l = 0; l < winningNumbersForPeriod.length; ++l) {
                             if (userTickets[j].numbers[k] == winningNumbersForPeriod[l]) {
                                 tempCorrectNumbers[matchCount] = userTickets[j].numbers[k];
-                                matchCount++;
+                                ++matchCount;
                             }
                         }
                     }
@@ -548,11 +548,11 @@ contract DaxLotto is Ownable, ReentrancyGuard {
                         correctNumbers: new uint256[](matchCount)
                     });
 
-                    for (uint256 m = 0; m < matchCount; m++) {
+                    for (uint256 m = 0; m < matchCount; ++m) {
                         result.correctNumbers[m] = tempCorrectNumbers[m];
                     }
 
-                    tempResults[index++] = result;
+                    tempResults[++index] = result;
                 }
             }
         }
@@ -570,7 +570,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         count = 0;
         for (uint256 i = 0; i < userTickets.length; i++) {
             if (block.timestamp >= userTickets[i].timestamp + lockDuration) {
-                count++;
+                ++count;
             }
         }
         return count;
@@ -600,10 +600,10 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         ExtendedTicket[] memory tempTickets = new ExtendedTicket[](limit);
         uint256 index = 0;
 
-        for (uint256 i = start; i < end; i++) {
+        for (uint256 i = start; i < end; ++i) {
             address owner = ticketOwner[i];
             Ticket[] storage userTickets = tickets[owner];
-            for (uint256 j = 0; j < userTickets.length; j++) {
+            for (uint256 j = 0; j < userTickets.length; ++j) {
                 if (userTickets[j].id == i) {
                     tempTickets[index] = ExtendedTicket({
                         id: userTickets[j].id,
@@ -612,7 +612,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
                         pricePaid: userTickets[j].pricePaid,
                         owner: owner
                     });
-                    index++;
+                    ++index;
                     if (index == limit) {
                         return tempTickets;
                     }
@@ -644,12 +644,12 @@ contract DaxLotto is Ownable, ReentrancyGuard {
     function countActivTickets() public view returns (uint256) {
         uint256 count = 0;
         address[] memory owners = getAllOwners(); // Helper function to get all unique ticket owners
-        for (uint256 i = 0; i < owners.length; i++) {
+        for (uint256 i = 0; i < owners.length; ++i) {
             address owner = owners[i];
             Ticket[] storage userTickets = tickets[owner];
-            for (uint256 j = 0; j < userTickets.length; j++) {
+            for (uint256 j = 0; j < userTickets.length; ++j) {
                 if (userTickets[j].numbers.length > 0) {
-                    count++;
+                    ++count;
                 }
             }
         }
@@ -663,10 +663,10 @@ contract DaxLotto is Ownable, ReentrancyGuard {
     function getAllOwners() internal view returns (address[] memory) {
         address[] memory owners = new address[](nextTicketId);
         uint256 ownerCount = 0;
-        for (uint256 i = 0; i < nextTicketId; i++) {
+        for (uint256 i = 0; i < nextTicketId; ++i) {
             address owner = ticketOwner[i];
             bool alreadyAdded = false;
-            for (uint256 j = 0; j < ownerCount; j++) {
+            for (uint256 j = 0; j < ownerCount; ++j) {
                 if (owners[j] == owner) {
                     alreadyAdded = true;
                     break;
@@ -679,7 +679,7 @@ contract DaxLotto is Ownable, ReentrancyGuard {
         }
         // Resize the array to the actual number of unique owners
         address[] memory uniqueOwners = new address[](ownerCount);
-        for (uint256 i = 0; i < ownerCount; i++) {
+        for (uint256 i = 0; i < ownerCount; ++i) {
             uniqueOwners[i] = owners[i];
         }
         return uniqueOwners;
