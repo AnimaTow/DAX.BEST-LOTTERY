@@ -9,10 +9,6 @@ contract DaxLotto is Ownable {
     uint256 public ticketPrice = 1000 * 10**18;
     uint256 public lockDuration = 30 days;
 
-    /*
-     * @notice Contract address of the DAX token
-     */
-
     struct Ticket {
         uint256 id;
         uint256[] numbers;
@@ -58,6 +54,11 @@ contract DaxLotto is Ownable {
     event TicketRefunded(address indexed user, uint256 ticketId, uint256 refundedAmount);
     event TicketPurchased(address indexed buyer, uint256 ticketId, uint256[] numbers, uint256 timestamp);
 
+    /*
+     * @notice Initializes the contract with the DAX token and sets the initial owner.
+     * @param initialOwner The address of the initial owner of the contract.
+     */
+
     constructor(address initialOwner) Ownable(initialOwner) {
         token = IERC20(0x2A944D47944985F746d32e952cEbA7EB909E1d4F);
     }
@@ -72,6 +73,7 @@ contract DaxLotto is Ownable {
      * @return ticketId The ID of the purchased ticket.
      * @return numbers The array of numbers that was submitted.
      */
+
     function buyTicket(uint256[] memory _numbers) public returns (uint256 ticketId, uint256[] memory numbers) {
         require(_numbers.length == 6, "Invalid numbers count");
         validateNumbers(_numbers);
@@ -111,6 +113,7 @@ contract DaxLotto is Ownable {
     * 
     * Emits a TicketPurchased event for each ticket purchased.
     */
+
     function buyMultiTickets(uint256[][] memory _numbersArray) public returns (TicketDetails[] memory) {
         require(_numbersArray.length > 0, "No tickets specified");
         uint256 totalTicketPrice = ticketPrice * _numbersArray.length;
@@ -159,16 +162,17 @@ contract DaxLotto is Ownable {
     * 
     * Throws if any of the validation checks fail, preventing the creation or validation of invalid tickets.
     */
+
     function validateNumbers(uint256[] memory numbers) internal pure {
         require(numbers.length == 6, "Invalid numbers count"); // Check for exactly 6 numbers
-    
+
         bool[50] memory numberExists; // Tracks if a number has already been used
-    
+
         for (uint i = 0; i < numbers.length; i++) {
             require(numbers[i] >= 1, "Number must be at least 1"); // Ensure number is at least 1
             require(numbers[i] <= 49, "Number must be at most 49"); // Ensure number is at most 49
             require(!numberExists[numbers[i]], "Numbers must be unique"); // Ensure uniqueness
-    
+
             numberExists[numbers[i]] = true; // Mark number as used
         }
     }
@@ -189,6 +193,7 @@ contract DaxLotto is Ownable {
     *          maintaining security measures to prevent abuse of the system. It ensures that refunds are 
     *          processed securely and that the state of the tickets and owner mappings are accurately maintained.
     */
+
     function refundTicket(uint256 ticketId) public {
         require(ticketOwner[ticketId] == msg.sender, "You do not own this ticket");
 
@@ -232,6 +237,7 @@ contract DaxLotto is Ownable {
     * - The function uses a manual iteration and modification pattern on the `tickets` array to safely update
     *   ticket data without encountering state corruption due to reentrancy attacks.
     */
+    
     function refundAllTickets() public {
         Ticket[] storage userTickets = tickets[msg.sender];
         uint256 refundAmount = 0;
@@ -255,15 +261,21 @@ contract DaxLotto is Ownable {
         }
     }
 
-
-
+    /**
+    * @notice Deletes a ticket from the user's list of tickets.
+    * @dev The function removes the ticket at the specified index from the user's ticket array by replacing it with the last element and then reducing the array length.
+    * @param userTickets The array of tickets belonging to the user.
+    * @param index The index of the ticket to be deleted.
+    */
     function deleteTicket(Ticket[] storage userTickets, uint index) internal {
         require(index < userTickets.length, "Index out of bounds");
         userTickets[index] = userTickets[userTickets.length - 1];
         userTickets.pop();
     }
+
     /*
     * @notice Draws winning numbers for the current lottery period and advances to the next period.
+    * @dev Generates a set of 6 unique winning numbers between 1 and 49, stores them in the `winningNumbers` mapping under the current lottery period index, and increments the `currentPeriod` to transition to the next lottery cycle.
     * @effects Stores the generated winning numbers in the `winningNumbers` mapping under the current lottery period index 
     *          and then increments the `currentPeriod` to transition to the next lottery cycle.
     */
@@ -290,6 +302,14 @@ contract DaxLotto is Ownable {
         currentPeriod++;
     }
 
+    /*
+     * @notice Retrieves a paginated list of tickets for a user.
+     * @param user The address of the user whose tickets are to be retrieved.
+     * @param start The starting index of the tickets to retrieve.
+     * @param limit The maximum number of tickets to retrieve.
+     * @return An array of tickets belonging to the user within the specified range.
+     */
+
     function getUserTickets(address user, uint start, uint limit) public view returns (Ticket[] memory) {
         require(start < tickets[user].length, "Start index out of bounds");
         uint end = start + limit;
@@ -306,36 +326,63 @@ contract DaxLotto is Ownable {
         return userTickets;
     }
 
+    /*
+     * @notice Retrieves the total number of tickets owned by a user.
+     * @param user The address of the user whose ticket count is to be retrieved.
+     * @return The total number of tickets owned by the user.
+     */
     function getCountUserTickets(address user) public view returns (uint256) {
         return tickets[user].length;
     }
 
+    /*
+     * @notice Sets a new lock duration for ticket refunds.
+     * @param _newDuration The new lock duration in seconds.
+     */
     function setLockDuration(uint256 _newDuration) public onlyOwner {
         lockDuration = _newDuration;
     }
 
+    /*
+     * @notice Retrieves the current lock duration for ticket refunds.
+     * @return The current lock duration in seconds.
+     */
     function getLockDuration() public view returns (uint256) {
         return lockDuration;
     }
 
+    /*
+     * @notice Retrieves the winning numbers and draw date for a specific lottery period.
+     * @param period The lottery period to retrieve the draw history for.
+     * @return A tuple containing the winning numbers and the draw date for the specified period.
+     */
     function getDrawHistory(uint256 period) public view returns (uint256[] memory, uint256) {
         return (winningNumbers[period - 1], drawDates[period - 1]);
     }
 
     /*
-     * @notice Output of the current lottery numbers from the current period
+     * @notice Output of the current lottery numbers from the current period.
+     * @return The winning numbers of the current period.
      */
     function getCurrentWinningNumbers() public view returns (uint256[] memory) {
         return winningNumbers[currentPeriod - 1];
     }
 
     /*
-     * @notice Allows the operator to change the ticket price, which is adjusted regularly as the price of the DAX tokens can change
+     * @notice Allows the operator to change the ticket price.
+     * @param _newPrice The new ticket price.
      */
     function setTicketPrice(uint256 _newPrice) public onlyOwner {
         ticketPrice = _newPrice;
     }
 
+    /*
+     * @notice Checks for winning tickets for a user within a specified range.
+     * @param user The address of the user whose tickets are to be checked.
+     * @param start The starting index of the tickets to check.
+     * @param limit The maximum number of tickets to check.
+     * @return An array of WinResult structs containing the results for each ticket checked.
+     */
     function checkForWins(address user, uint start, uint limit) public view returns (WinResult[] memory) {
         Ticket[] memory userTickets = tickets[user];
         uint end = start + limit;
@@ -512,10 +559,18 @@ contract DaxLotto is Ownable {
         return resultTickets;
     }
 
+    /*
+     * @notice Retrieves the total number of tickets issued by the contract.
+     * @return The total number of tickets.
+     */
     function getTotalTickets() public view returns (uint) {
         return nextTicketId - 1;
     }
 
+    /*
+     * @notice Counts the active tickets in the contract.
+     * @return The number of active tickets.
+     */
     function countActivTickets() public view returns (uint) {
         uint count = 0;
         address[] memory owners = getAllOwners(); // Helper function to get all unique ticket owners
@@ -531,7 +586,10 @@ contract DaxLotto is Ownable {
         return count;
     }
 
-    // Helper function to get all unique ticket owners
+    /*
+     * @notice Retrieves all unique ticket owners.
+     * @return An array of addresses of unique ticket owners.
+     */
     function getAllOwners() internal view returns (address[] memory) {
         address[] memory owners = new address[](nextTicketId);
         uint ownerCount = 0;
